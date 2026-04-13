@@ -1,6 +1,6 @@
 # Prism
 
-**Session intelligence for Claude Code. Find out why your sessions are burning tokens — and fix them.**
+**Session intelligence for Claude Code. Find out why your sessions are burning tokens, and fix them.**
 
 [![PyPI version](https://img.shields.io/pypi/v/prism-cc?cache=1)](https://pypi.org/project/prism-cc/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)

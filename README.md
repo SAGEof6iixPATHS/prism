@@ -2,7 +2,7 @@
 
 **Session intelligence for Claude Code. Find out why your sessions are burning tokens — and fix them.**
 
-[![PyPI version](https://img.shields.io/pypi/v/prism-cc.svg)](https://pypi.org/project/prism-cc/)
+[![PyPI version](https://img.shields.io/pypi/v/prism-cc?cache=1)](https://pypi.org/project/prism-cc/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/github/actions/workflow/status/jakeefr/prism/tests.yml?label=tests)](https://github.com/jakeefr/prism/actions)

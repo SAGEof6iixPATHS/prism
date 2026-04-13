@@ -1,4 +1,4 @@
-# prism
+# Prism
 
 **Session intelligence for Claude Code. Find out why your sessions are burning tokens — and fix them.**
 

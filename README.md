@@ -79,6 +79,12 @@ prism watch
 ```
 Then just ask Claude: "analyze my Claude Code sessions"
 
+> **Note:** PRISM needs to be installed via pip to work:
+> `pip install prism-cc`
+> If pip isn't installed, Claude Code will detect this
+> and walk you through the installation automatically
+> before running the analysis.
+
 ---
 
 ## What you'll see

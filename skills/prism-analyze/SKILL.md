@@ -10,6 +10,25 @@ Analyze Claude Code session health using PRISM.
 When the user asks to analyze their Claude Code sessions, check token usage,
 audit their CLAUDE.md, or understand why sessions are failing.
 
+## Before running
+
+First check if PRISM is installed:
+```bash
+prism --version
+```
+
+If the command is not found, install it first:
+```bash
+pip install prism-cc
+```
+
+Then verify it installed correctly:
+```bash
+prism --version
+```
+
+Once confirmed installed, proceed with the analysis.
+
 ## Usage
 
 Run the analysis:

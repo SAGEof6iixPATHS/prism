@@ -4,7 +4,7 @@
 
 ![PRISM demo](https://raw.githubusercontent.com/jakeefr/prism/main/demo.gif)
 
-<p align="center">
+<div align="center">
 
 [![PyPI version](https://img.shields.io/pypi/v/prism-cc?cache=1)](https://pypi.org/project/prism-cc/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -14,11 +14,11 @@
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-orange.svg)](https://github.com/jakeefr/prism)
 [![Zero dependencies](https://img.shields.io/badge/external%20deps-4-brightgreen.svg)](pyproject.toml)
 
-</p>
+<br>
 
-<p align="center">
-<b>Session intelligence for Claude Code. Find out why your sessions are burning tokens, and fix them.</b>
-</p>
+**Session intelligence for Claude Code. Find out why your sessions are burning tokens, and fix them.**
+
+</div>
 
 ---
 

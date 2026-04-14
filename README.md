@@ -234,10 +234,6 @@ pip install prism-cc
 # pipx (recommended — isolated install)
 pipx install prism-cc
 
-# Claude Code plugin
-/plugin marketplace add jakeefr/prism
-/plugin install prism@prism
-
 # from source
 git clone https://github.com/jakeefr/prism
 cd prism
@@ -245,6 +241,32 @@ pip install -e .
 ```
 
 Requires Python 3.11+. No Claude API key needed — reads local files only. Works on macOS, Linux, and Windows.
+
+---
+
+## Claude Code Plugin
+
+Install directly inside Claude Code:
+
+```
+/plugin marketplace add jakeefr/prism
+/plugin install prism@prism
+/reload-plugins
+```
+
+Once installed, Claude Code will know how to run PRISM for you.
+Just ask:
+
+- "analyze my Claude Code sessions"
+- "check my CLAUDE.md health"
+- "why are my sessions using so many tokens"
+
+Claude will run `prism analyze` and interpret the results.
+
+> **Note:** PRISM still needs to be installed via pip to work:
+> `pip install prism-cc`
+> The plugin teaches Claude Code how to invoke it —
+> pip provides the actual tool.
 
 ---
 

@@ -1,0 +1,12 @@
+{
+  "name": "prism",
+  "owner": { "name": "jakeefr" },
+  "plugins": [
+    {
+      "name": "prism",
+      "source": { "source": "github", "repo": "jakeefr/prism" },
+      "description": "Session intelligence for Claude Code — find why your sessions fail and fix them",
+      "version": "0.2.0"
+    }
+  ]
+}

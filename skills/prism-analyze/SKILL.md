@@ -1,3 +1,7 @@
+---
+description: Analyze Claude Code session health using PRISM. Use when asked to check token usage, audit CLAUDE.md, or understand why sessions are failing.
+---
+
 # prism-analyze
 
 Analyze Claude Code session health using PRISM.

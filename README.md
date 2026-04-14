@@ -236,7 +236,7 @@ pipx install prism-cc
 
 # Claude Code plugin
 /plugin marketplace add jakeefr/prism
-/plugin install prism
+/plugin install prism@prism
 
 # from source
 git clone https://github.com/jakeefr/prism

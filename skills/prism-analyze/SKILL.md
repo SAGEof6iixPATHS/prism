@@ -1,5 +1,5 @@
 ---
-description: Analyze Claude Code session health using PRISM. Use when asked to check token usage, audit CLAUDE.md, or understand why sessions are failing.
+description: Analyze Claude Code session health using PRISM. Use when asked to check token usage, audit CLAUDE.md, understand why sessions are failing, or list projects.
 ---
 
 # prism-analyze
@@ -8,7 +8,8 @@ Analyze Claude Code session health using PRISM.
 
 ## When to use
 When the user asks to analyze their Claude Code sessions, check token usage,
-audit their CLAUDE.md, or understand why sessions are failing.
+audit their CLAUDE.md, understand why sessions are failing, list their
+projects, or see what PRISM can see.
 
 ## Before running
 
@@ -47,10 +48,24 @@ For a specific project:
 prism analyze --project <path>
 ```
 
+For JSON output (useful for scripting):
+```bash
+prism analyze --json
+```
+
 For CLAUDE.md recommendations:
 ```bash
 prism advise
 ```
+
+List all projects PRISM can see:
+```bash
+prism projects
+```
+
+This prints each project name, session count, and last-active timestamp.
+Use it when the user asks what projects PRISM has data for, or to confirm
+that sessions are being recorded.
 
 ## What PRISM shows
 - Health scores (A-F) across 5 dimensions per project

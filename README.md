@@ -38,9 +38,9 @@ Your Claude Code sessions are silently wasting tokens and you don't know why.
 
 Running PRISM against real session data from a single machine found:
 
-- A project with **6738% CLAUDE.md re-read cost** in one session — a 237-line file being re-read on every tool call
-- A project where **CLAUDE.md re-reads consumed 480% of total session tokens** — more tokens on instructions than on actual work
-- **4 migration file edits** in a project that had a rule saying never to touch them — the rule existed, Claude ignored it
+- A project with **6738% CLAUDE.md re-read cost** in one session: a 237-line file being re-read on every tool call
+- A project where **CLAUDE.md re-reads consumed 480% of total session tokens**: more tokens on instructions than on actual work
+- **4 migration file edits** in a project that had a rule saying never to touch them. The rule existed, Claude ignored it
 - **5 consecutive tool failures** in a single session with no diagnosis
 
 None of this was visible before PRISM. The token counter just said you hit your limit.
@@ -49,11 +49,11 @@ None of this was visible before PRISM. The token counter just said you hit your 
 
 ## What PRISM does
 
-PRISM reads Claude Code's session files from `~/.claude/projects/` — the same files Claude Code writes automatically — and tells you three things:
+PRISM reads Claude Code's session files from `~/.claude/projects/` (the same files Claude Code writes automatically) and tells you three things:
 
-1. **Why your tokens are disappearing** — CLAUDE.md re-read costs, retry loops, compaction losses, sidechain waste
-2. **Whether your CLAUDE.md rules are actually being followed** — or silently ignored mid-session
-3. **Exactly what to change** — concrete diff recommendations, not generic advice
+1. **Why your tokens are disappearing**: CLAUDE.md re-read costs, retry loops, compaction losses, sidechain waste
+2. **Whether your CLAUDE.md rules are actually being followed**, or silently ignored mid-session
+3. **Exactly what to change**: concrete diff recommendations, not generic advice
 
 You keep using Claude Code exactly as normal. PRISM is the tool you run after.
 
@@ -112,10 +112,10 @@ Followed by the advisor:
 
 ```
 ╭──────────────────────────────────────────────────────────╮
-│  PRISM ADVISOR — recommendations for myapp               │
+│  PRISM ADVISOR - recommendations for myapp                │
 ╰──────────────────────────────────────────────────────────╯
 
-  ✦ TRIM  (High impact — silent token drain every session)
+  ✦ TRIM  (High impact - silent token drain every session)
     Remove lines 120–148: personality/tone instructions
     Claude Code's system prompt already handles this.
     These 29 lines cost tokens on every single tool call.
@@ -125,7 +125,7 @@ Followed by the advisor:
     - "Use functional components only in React"
     - "Import from @/components, never relative paths"
     - "Run bun run typecheck after TypeScript changes"
-    These only matter in src/ — loading them globally wastes
+    These only matter in src/, and loading them globally wastes
     tokens in every session that doesn't touch that directory.
 ```
 
@@ -134,7 +134,7 @@ Followed by the advisor:
 <br>
 
 ![PRISM Dashboard](https://raw.githubusercontent.com/jakeefr/prism/main/assets/dashboard-preview.png)
-*The HTML dashboard — open in any browser with `prism dashboard`*
+*The HTML dashboard. Open in any browser with `prism dashboard`*
 
 ![PRISM Dashboard Detail](https://raw.githubusercontent.com/jakeefr/prism/main/assets/dashboard-detail.png)
 *Expand any project to see dimension scores, top issues, and CLAUDE.md recommendations*
@@ -150,7 +150,7 @@ Followed by the advisor:
 | **Token Efficiency** | CLAUDE.md re-read costs, cache hit patterns, compaction frequency |
 | **Tool Health** | Retry loops, edit-revert cycles, consecutive failures, interactive command hangs |
 | **Context Hygiene** | Compaction loss events, mid-task boundaries, sidechain fragmentation |
-| **CLAUDE.md Adherence** | Whether your rules are actually being followed — or ignored mid-session |
+| **CLAUDE.md Adherence** | Whether your rules are actually being followed, or ignored mid-session |
 | **Session Continuity** | Resume success rate, context loss on restart, truncated session files |
 
 ---
@@ -183,7 +183,7 @@ already on your machine. No telemetry, no analytics, no external servers.
 <details>
 <summary><b>Can PRISM hurt my Claude Code sessions?</b></summary>
 
-No. PRISM is read-only — it never modifies session files. It reads
+No. PRISM is read-only. It never modifies session files. It reads
 `~/.claude/projects/` but never writes to it. Your sessions are completely
 untouched.
 </details>
@@ -192,7 +192,7 @@ untouched.
 <summary><b>Does PRISM modify my CLAUDE.md without asking?</b></summary>
 
 Only if you explicitly run `prism advise --apply` and confirm the prompt.
-`prism advise` (without --apply) only prints recommendations — it never
+`prism advise` (without --apply) only prints recommendations and never
 touches any file.
 </details>
 
@@ -207,7 +207,7 @@ variables, no network traffic.
 <details>
 <summary><b>Does it work with Claude Code Max / Pro / Team?</b></summary>
 
-Yes — PRISM reads local session files which are written by all Claude Code
+Yes. PRISM reads local session files which are written by all Claude Code
 subscription tiers. The analysis works identically regardless of your plan.
 </details>
 
@@ -222,7 +222,7 @@ widely-used Python libraries. No C extensions, no compiled binaries.
 
 ## The CLAUDE.md re-read problem
 
-Every tool call Claude Code makes re-reads your CLAUDE.md from the top of the context. A 200-line CLAUDE.md × 50 tool calls = 10,000 tokens spent on instructions, per session. If your CLAUDE.md has grown to include personality instructions, full documentation copies, or rules that only apply to one subdirectory — you're paying for all of it every time.
+Every tool call Claude Code makes re-reads your CLAUDE.md from the top of the context. A 200-line CLAUDE.md × 50 tool calls = 10,000 tokens spent on instructions, per session. If your CLAUDE.md has grown to include personality instructions, full documentation copies, or rules that only apply to one subdirectory, you're paying for all of it every time.
 
 PRISM measures this exactly and tells you which lines are costing you the most.
 
@@ -255,7 +255,7 @@ prism projects                 # List all projects with session counts
 # pip (standalone CLI)
 pip install prism-cc
 
-# pipx (recommended — isolated install)
+# pipx (recommended, isolated install)
 pipx install prism-cc
 
 # from source
@@ -264,7 +264,7 @@ cd prism
 pip install -e .
 ```
 
-Requires Python 3.11+. No Claude API key needed — reads local files only. Works on macOS, Linux, and Windows.
+Requires Python 3.11+. No Claude API key needed. Reads local files only. Works on macOS, Linux, and Windows.
 
 ---
 
@@ -297,7 +297,7 @@ Claude will run `prism analyze` and interpret the results.
 
 ## Contributing
 
-Issues and PRs welcome. If you run `prism analyze` and find something interesting in your own session data, open an issue — real-world patterns help improve the detection logic.
+Issues and PRs welcome. If you run `prism analyze` and find something interesting in your own session data, open an issue. Real-world patterns help improve the detection logic.
 
 ```bash
 git clone https://github.com/jakeefr/prism
@@ -310,7 +310,7 @@ uv run pytest
 
 ## License
 
-MIT — do whatever you want with it.
+MIT. Do whatever you want with it.
 
 ---
 

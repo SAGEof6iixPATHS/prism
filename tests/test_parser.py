@@ -211,6 +211,93 @@ class TestParseRecord:
         assert record.session_id == ""
         assert record.is_sidechain is False
 
+    def test_classify_continuation_as_system_record(self):
+        """User record with continuation text is promoted to SystemRecord."""
+        data = {
+            "uuid": "u-cont",
+            "parentUuid": None,
+            "isSidechain": False,
+            "sessionId": "sess1",
+            "timestamp": "2026-04-10T10:00:00.000Z",
+            "version": "2.1.98",
+            "cwd": "/home/user/proj",
+            "gitBranch": "main",
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "This session is being continued from a previous conversation."}]
+            }
+        }
+        record = parse_record(data)
+        assert isinstance(record, SystemRecord)
+        assert record.type == "user"
+        assert record.subtype == "continuation"
+        assert record.summary.startswith("This session is being continued")
+
+    def test_classify_interrupted_as_system_record(self):
+        """User record with interrupted text is promoted to SystemRecord."""
+        data = {
+            "uuid": "u-int",
+            "parentUuid": None,
+            "isSidechain": False,
+            "sessionId": "sess1",
+            "timestamp": "2026-04-10T10:00:00.000Z",
+            "version": "2.1.98",
+            "cwd": "/home/user/proj",
+            "gitBranch": "main",
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "[Request interrupted by user]"}]
+            }
+        }
+        record = parse_record(data)
+        assert isinstance(record, SystemRecord)
+        assert record.type == "user"
+        assert record.subtype == "interrupted"
+
+    def test_regular_user_message_unchanged(self):
+        """Normal user text must NOT be promoted to SystemRecord."""
+        data = {
+            "uuid": "u-norm",
+            "parentUuid": None,
+            "isSidechain": False,
+            "sessionId": "sess1",
+            "timestamp": "2026-04-10T10:00:00.000Z",
+            "version": "2.1.98",
+            "cwd": "/home/user/proj",
+            "gitBranch": "main",
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "Please fix the login bug"}]
+            }
+        }
+        record = parse_record(data)
+        assert isinstance(record, UserRecord)
+        assert record.content[0].text == "Please fix the login bug"
+
+    def test_bom_prefix_handled(self):
+        """BOM prefix before continuation text must still classify correctly."""
+        data = {
+            "uuid": "u-bom",
+            "parentUuid": None,
+            "isSidechain": False,
+            "sessionId": "sess1",
+            "timestamp": "2026-04-10T10:00:00.000Z",
+            "version": "2.1.98",
+            "cwd": "/home/user/proj",
+            "gitBranch": "main",
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "﻿This session is being continued from a previous conversation."}]
+            }
+        }
+        record = parse_record(data)
+        assert isinstance(record, SystemRecord)
+        assert record.subtype == "continuation"
+
 
 # ---------------------------------------------------------------------------
 # parse_session_file tests

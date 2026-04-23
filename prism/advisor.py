@@ -13,7 +13,6 @@ from pathlib import Path
 from prism.analyzer import (
     Issue,
     ProjectHealthReport,
-    analyze_project,
 )
 
 

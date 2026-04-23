@@ -115,6 +115,30 @@ def _parse_content_blocks(content_raw: Any) -> list[ContentBlock]:
     return blocks
 
 
+def _extract_text_from_blocks(blocks: list[ContentBlock]) -> str:
+    """Join text blocks into a single string for classification."""
+    return " ".join(b.text for b in blocks if b.text)
+
+
+def _classify_system_message(text: str) -> str | None:
+    """Classify user-record content as a system subtype, or None.
+
+    Mirrors agentsview's ClassifyClaudeSystemMessage.
+    """
+    t = text.lstrip("﻿").strip()
+    if t.startswith("This session is being continued"):
+        return "continuation"
+    if t.startswith("<local-command-caveat>"):
+        return "resume"
+    if t.startswith("[Request interrupted"):
+        return "interrupted"
+    if t.startswith("<task-notification>"):
+        return "task_notification"
+    if t.startswith("Stop hook feedback:"):
+        return "stop_hook"
+    return None
+
+
 def _parse_envelope(data: dict[str, Any]) -> dict[str, Any]:
     """Extract common envelope fields from a raw record dict."""
     return {
@@ -142,10 +166,15 @@ def parse_record(data: dict[str, Any]) -> SessionRecord | None:
     if record_type == "user":
         message = data.get("message", {})
         content_raw = message.get("content", []) if isinstance(message, dict) else []
-        return UserRecord(
-            **envelope_kwargs,
-            content=_parse_content_blocks(content_raw),
-        )
+        blocks = _parse_content_blocks(content_raw)
+        subtype = _classify_system_message(_extract_text_from_blocks(blocks))
+        if subtype:
+            return SystemRecord(
+                **envelope_kwargs,
+                subtype=subtype,
+                summary=_extract_text_from_blocks(blocks)[:200],
+            )
+        return UserRecord(**envelope_kwargs, content=blocks)
 
     elif record_type == "assistant":
         message = data.get("message", {})

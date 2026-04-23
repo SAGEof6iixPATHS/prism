@@ -505,6 +505,22 @@ class TestDiscoverProjects:
         assert len(projects[0].session_files) == 1
         assert projects[0].session_files[0].suffix == ".jsonl"
 
+    def test_last_active_returns_float(self, tmp_path):
+        proj = tmp_path / "-home-user-proj"
+        proj.mkdir()
+        (proj / "session.jsonl").write_text(
+            '{"uuid":"u1","type":"user","message":{"role":"user","content":[]}}\n',
+            encoding="utf-8"
+        )
+        projects = discover_projects(tmp_path)
+        assert isinstance(projects[0].last_active, float)
+
+    def test_last_active_none_when_no_sessions(self, tmp_path):
+        proj = tmp_path / "-home-user-empty"
+        proj.mkdir()
+        projects = discover_projects(tmp_path)
+        assert projects[0].last_active is None
+
 
 # ---------------------------------------------------------------------------
 # project_path_to_encoded_name tests

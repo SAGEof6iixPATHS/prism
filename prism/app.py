@@ -56,14 +56,8 @@ def _format_ago(mtime: float) -> str:
         return f"{int(delta // (7 * 86400))}w ago"
 
 
-def _project_last_active(project: ProjectInfo) -> float:
-    if project.session_files:
-        return project.session_files[0].stat().st_mtime
-    return 0.0
-
-
 def _project_to_entry(project: ProjectInfo, report: ProjectHealthReport) -> ProjectEntry:
-    mtime = _project_last_active(project)
+    mtime = project.last_active or 0.0
     last_active_str = _format_ago(mtime) if mtime else "never"
     return ProjectEntry(
         encoded_name=project.encoded_name,

@@ -415,6 +415,41 @@ class TestResolveProjectPath:
         assert len(results) == 1
 
 
+    def test_encoding_collision_both_discovered(self, tmp_path: Path):
+        """When two DB paths encode to the same name, both appear in discovery.
+
+        This is a known limitation of project_path_to_encoded_name being
+        non-injective. Both projects get the same encoded_name, but each
+        has a correct _project_paths mapping so load_sessions still works
+        for whichever one the caller picks (the last-discovered path wins
+        the cache entry).
+        """
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        conn.execute(
+            "INSERT INTO sessions (session_id, project) VALUES (?, ?)",
+            ("s1", "/home/my-project"),
+        )
+        conn.execute(
+            "INSERT INTO sessions (session_id, project) VALUES (?, ?)",
+            ("s2", "/home/my/project"),
+        )
+        _insert_message(conn, "m1", "s1", "user", content="a")
+        _insert_message(conn, "m2", "s2", "user", content="b")
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        projects = ds.discover_projects()
+        # Two DB rows → two ProjectInfo objects (same encoded_name)
+        assert len(projects) == 2
+        assert projects[0].encoded_name == projects[1].encoded_name
+        # load_sessions works for the last-cached path
+        results = ds.load_sessions(projects[-1])
+        assert len(results) == 1
+
+
 class TestAnalyzeProjectIntegration:
     def test_analyze_with_agentsview_datasource(self, tmp_path: Path):
         from prism.analyzer import ProjectHealthReport, analyze_project

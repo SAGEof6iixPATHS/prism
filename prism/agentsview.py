@@ -114,7 +114,8 @@ class AgentsviewDataSource:
         # Fallback: query DB directly for the original path
         conn = self._connect()
         rows = conn.execute(
-            "SELECT DISTINCT project FROM sessions WHERE project IS NOT NULL"
+            "SELECT DISTINCT project FROM sessions"
+            " WHERE project IS NOT NULL AND deleted_at IS NULL"
         ).fetchall()
         for row in rows:
             if project_path_to_encoded_name(row["project"]) == encoded_name:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from prism.agentsview import AgentsviewDataSource
 from prism.datasource import SessionDataSource
-from prism.parser import project_path_to_encoded_name
+from prism.parser import ProjectInfo, project_path_to_encoded_name
 
 
 def _build_test_db(db_path: Path) -> None:
@@ -126,3 +126,46 @@ class TestDiscoverProjects:
         names = {p.encoded_name for p in projects}
         assert project_path_to_encoded_name("/home/user/alpha") in names
         assert project_path_to_encoded_name("/home/user/beta") in names
+
+    def test_null_project_excluded(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        conn.execute(
+            "INSERT INTO sessions (session_id, project) VALUES (?, ?)",
+            ("s1", None),
+        )
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        assert ds.discover_projects() == []
+
+
+class TestConnectionLifecycle:
+    def test_close(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        ds = AgentsviewDataSource(db)
+        ds.discover_projects()
+        ds.close()
+        assert ds._conn is None
+
+    def test_context_manager(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        with AgentsviewDataSource(db) as ds:
+            ds.discover_projects()
+        assert ds._conn is None
+
+    def test_safe_defaults(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        ds = AgentsviewDataSource(db)
+        proj = ds.discover_projects()
+        assert ds.load_sessions(
+            ProjectInfo(encoded_name="x", project_dir=Path("."), session_files=[])
+        ) == []
+        assert ds.find_claude_md(
+            ProjectInfo(encoded_name="x", project_dir=Path("."), session_files=[])
+        ) is None

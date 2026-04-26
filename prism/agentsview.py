@@ -25,17 +25,29 @@ class AgentsviewDataSource:
             self._conn.row_factory = sqlite3.Row
         return self._conn
 
+    def close(self) -> None:
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
+
+    def __enter__(self) -> AgentsviewDataSource:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
     def discover_projects(self) -> list[ProjectInfo]:
         conn = self._connect()
         rows = conn.execute(
             "SELECT DISTINCT project FROM sessions"
-            " WHERE deleted_at IS NULL"
+            " WHERE deleted_at IS NULL AND project IS NOT NULL"
             " ORDER BY project"
         ).fetchall()
         projects: list[ProjectInfo] = []
         for row in rows:
             project_path = row["project"]
             encoded = project_path_to_encoded_name(project_path)
+            # Synthetic non-filesystem path — agentsview projects have no local directory
             projects.append(ProjectInfo(
                 encoded_name=encoded,
                 project_dir=Path(f"agentsview://{encoded}"),
@@ -44,7 +56,7 @@ class AgentsviewDataSource:
         return projects
 
     def load_sessions(self, project: ProjectInfo) -> list[ParseResult]:
-        raise NotImplementedError("Phase 3b")
+        return []
 
     def find_claude_md(self, project: ProjectInfo) -> Path | None:
-        raise NotImplementedError("Phase 3d")
+        return None

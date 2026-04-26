@@ -669,7 +669,8 @@ class TestFindClaudeMd:
         workspace.mkdir()
         (workspace / "CLAUDE.md").write_text("# Rules\n", encoding="utf-8")
 
-        # Project path is different from cwd
+        # Project path intentionally doesn't exist — forces cwd fallback
+        assert not (tmp_path / "nonexistent").exists()
         _build_test_db(db)
         conn = sqlite3.connect(db)
         conn.execute(

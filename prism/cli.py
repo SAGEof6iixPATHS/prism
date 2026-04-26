@@ -6,6 +6,7 @@ Thin layer that calls analyzer / advisor / app. No business logic here.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -17,7 +18,7 @@ from rich.text import Text
 
 from prism import __version__
 from prism.analyzer import analyze_project
-from prism.datasource import JSONLDataSource
+from prism.datasource import JSONLDataSource, SessionDataSource
 from prism.parser import (
     CLAUDE_PROJECTS_DIR,
     ProjectInfo,
@@ -43,6 +44,47 @@ app = typer.Typer(
 
 console = Console()
 err_console = Console(stderr=True)
+
+
+# ---------------------------------------------------------------------------
+# Data-source helpers
+# ---------------------------------------------------------------------------
+
+def resolve_agentsview_db(explicit: Path | None = None) -> Path:
+    """Resolve the agentsview SQLite DB path via the priority chain.
+
+    1. Explicit path (--agentsview-db flag)
+    2. AGENTSVIEW_DATA_DIR env var  (newer, preferred)
+    3. AGENT_VIEWER_DATA_DIR env var (older, kept for compat)
+    4. Default ~/.agentsview/sessions.db
+    """
+    if explicit is not None:
+        return explicit
+    for var in ("AGENTSVIEW_DATA_DIR", "AGENT_VIEWER_DATA_DIR"):
+        val = os.environ.get(var)
+        if val:
+            return Path(val) / "sessions.db"
+    return Path.home() / ".agentsview" / "sessions.db"
+
+
+def _make_datasource(
+    source: str,
+    agentsview_db: Path | None,
+    base_dir: Path | None,
+) -> SessionDataSource:
+    """Instantiate the right datasource based on --source choice."""
+    if source == "agentsview":
+        from prism.agentsview import AgentsviewDataSource
+
+        db_path = resolve_agentsview_db(agentsview_db)
+        if not db_path.exists():
+            err_console.print(
+                f"[red]Agentsview database not found: {db_path}[/red]\n"
+                "[dim]Set AGENTSVIEW_DATA_DIR or pass --agentsview-db.[/dim]"
+            )
+            raise typer.Exit(1)
+        return AgentsviewDataSource(db_path)
+    return JSONLDataSource(base_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +128,18 @@ def analyze_cmd(
         "--json",
         help="Output results as JSON.",
     ),
+    source: str = typer.Option(
+        "jsonl",
+        "--source",
+        "-s",
+        help="Data source: jsonl (default) or agentsview.",
+    ),
+    agentsview_db: Optional[Path] = typer.Option(
+        None,
+        "--agentsview-db",
+        help="Explicit path to agentsview SQLite database.",
+        exists=False,
+    ),
     base_dir: Optional[Path] = typer.Option(
         None,
         "--base-dir",
@@ -94,7 +148,11 @@ def analyze_cmd(
     ),
 ) -> None:
     """Print a health report for all projects (or one project)."""
-    projects = _resolve_projects(project, base_dir)
+    ds = _make_datasource(source, agentsview_db, base_dir)
+    if source == "agentsview":
+        projects = ds.discover_projects()
+    else:
+        projects = _resolve_projects(project, base_dir)
     if not projects:
         _no_projects_error(base_dir)
         raise typer.Exit(1)
@@ -102,7 +160,7 @@ def analyze_cmd(
     reports = []
     for proj in projects:
         try:
-            report = analyze_project(proj)
+            report = analyze_project(proj, datasource=ds)
             reports.append((proj, report))
         except Exception as exc:
             err_console.print(f"[yellow]Warning: Could not analyze {proj.encoded_name}: {exc}[/yellow]")
@@ -247,6 +305,18 @@ def advise_cmd(
         "--apply",
         help="Apply ADD recommendations to CLAUDE.md (with confirmation).",
     ),
+    source: str = typer.Option(
+        "jsonl",
+        "--source",
+        "-s",
+        help="Data source: jsonl (default) or agentsview.",
+    ),
+    agentsview_db: Optional[Path] = typer.Option(
+        None,
+        "--agentsview-db",
+        help="Explicit path to agentsview SQLite database.",
+        exists=False,
+    ),
     base_dir: Optional[Path] = typer.Option(
         None,
         "--base-dir",
@@ -257,14 +327,16 @@ def advise_cmd(
     """Print concrete CLAUDE.md recommendations as a colored diff."""
     from prism.advisor import apply_advice, format_advice_rich, generate_advice
 
-    projects = _resolve_projects(project, base_dir)
+    ds = _make_datasource(source, agentsview_db, base_dir)
+    if source == "agentsview":
+        projects = ds.discover_projects()
+    else:
+        projects = _resolve_projects(project, base_dir)
     if not projects:
         _no_projects_error(base_dir)
         raise typer.Exit(1)
 
-    # Use the first (most recent) project if no --project given
     proj = projects[0]
-    ds = JSONLDataSource()
     claude_md_path = ds.find_claude_md(proj)
     try:
         report = analyze_project(proj, claude_md_path=claude_md_path, datasource=ds)
@@ -414,6 +486,18 @@ def dashboard_cmd(
         "--no-open",
         help="Generate dashboard only — do not open browser.",
     ),
+    source: str = typer.Option(
+        "jsonl",
+        "--source",
+        "-s",
+        help="Data source: jsonl (default) or agentsview.",
+    ),
+    agentsview_db: Optional[Path] = typer.Option(
+        None,
+        "--agentsview-db",
+        help="Explicit path to agentsview SQLite database.",
+        exists=False,
+    ),
     base_dir: Optional[Path] = typer.Option(
         None,
         "--base-dir",
@@ -424,7 +508,11 @@ def dashboard_cmd(
     """Generate the HTML dashboard and open it in your browser."""
     from prism.dashboard import generate_dashboard, get_dashboard_path, serve_dashboard
 
-    projects = _resolve_projects(None, base_dir)
+    ds = _make_datasource(source, agentsview_db, base_dir)
+    if source == "agentsview":
+        projects = ds.discover_projects()
+    else:
+        projects = _resolve_projects(None, base_dir)
     if not projects:
         _no_projects_error(base_dir)
         raise typer.Exit(1)
@@ -432,8 +520,7 @@ def dashboard_cmd(
     reports = []
     for proj in projects:
         try:
-            from prism.analyzer import analyze_project as _analyze
-            reports.append(_analyze(proj))
+            reports.append(analyze_project(proj, datasource=ds))
         except Exception as exc:
             err_console.print(f"[yellow]Warning: {proj.encoded_name}: {exc}[/yellow]")
 

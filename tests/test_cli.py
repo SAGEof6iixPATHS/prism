@@ -197,6 +197,26 @@ class TestSourceValidation:
         assert result.exit_code != 0
         assert "--project cannot be used" in result.output
 
+    def test_advise_base_dir_with_agentsview_rejected(self, tmp_path: Path) -> None:
+        db_path = _make_test_db(tmp_path)
+        result = runner.invoke(
+            app,
+            ["advise", "--source", "agentsview", "--agentsview-db", str(db_path),
+             "--base-dir", str(tmp_path)],
+        )
+        assert result.exit_code != 0
+        assert "--base-dir cannot be used" in result.output
+
+    def test_dashboard_base_dir_with_agentsview_rejected(self, tmp_path: Path) -> None:
+        db_path = _make_test_db(tmp_path)
+        result = runner.invoke(
+            app,
+            ["dashboard", "--source", "agentsview", "--agentsview-db", str(db_path),
+             "--base-dir", str(tmp_path), "--no-open"],
+        )
+        assert result.exit_code != 0
+        assert "--base-dir cannot be used" in result.output
+
 
 # ---------------------------------------------------------------------------
 # CLI: default --source jsonl unchanged

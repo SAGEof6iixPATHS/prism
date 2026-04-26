@@ -14,7 +14,7 @@ from prism.parser import (
     SessionRecord,
     SystemRecord,
     UserRecord,
-    _classify_system_message,
+    classify_system_message,
     project_path_to_encoded_name,
 )
 
@@ -41,10 +41,12 @@ def _row_to_record(row: sqlite3.Row) -> SessionRecord | None:
     content_text = row["content"] or ""
 
     if row["is_compact_boundary"]:
+        kwargs["type"] = "system"
         return SystemRecord(**kwargs, subtype="compact_boundary", summary=content_text[:200])
 
     if row["is_system"]:
-        subtype = _classify_system_message(content_text)
+        kwargs["type"] = "system"
+        subtype = classify_system_message(content_text)
         return SystemRecord(**kwargs, subtype=subtype, summary=content_text[:200])
 
     role = row["role"]
@@ -66,6 +68,7 @@ class AgentsviewDataSource:
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
+        self._project_paths: dict[str, str] = {}  # encoded_name → original DB path
 
     def _connect(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -95,6 +98,7 @@ class AgentsviewDataSource:
         for row in rows:
             project_path = row["project"]
             encoded = project_path_to_encoded_name(project_path)
+            self._project_paths[encoded] = project_path
             # Synthetic non-filesystem path — agentsview projects have no local directory
             projects.append(ProjectInfo(
                 encoded_name=encoded,
@@ -103,12 +107,30 @@ class AgentsviewDataSource:
             ))
         return projects
 
+    def _resolve_project_path(self, encoded_name: str) -> str:
+        """Get the original DB project path from encoded_name."""
+        if encoded_name in self._project_paths:
+            return self._project_paths[encoded_name]
+        # Fallback: query DB directly for the original path
+        conn = self._connect()
+        rows = conn.execute(
+            "SELECT DISTINCT project FROM sessions WHERE project IS NOT NULL"
+        ).fetchall()
+        for row in rows:
+            if project_path_to_encoded_name(row["project"]) == encoded_name:
+                self._project_paths[encoded_name] = row["project"]
+                return row["project"]
+        return ""
+
     def load_sessions(self, project: ProjectInfo) -> list[ParseResult]:
+        project_path = self._resolve_project_path(project.encoded_name)
+        if not project_path:
+            return []
         conn = self._connect()
         session_rows = conn.execute(
             "SELECT session_id FROM sessions"
             " WHERE project = ? AND deleted_at IS NULL",
-            (self._decode_project_path(project.encoded_name),),
+            (project_path,),
         ).fetchall()
         if not session_rows:
             return []
@@ -139,23 +161,6 @@ class AgentsviewDataSource:
                 records=records,
             ))
         return results
-
-    @staticmethod
-    def _decode_project_path(encoded_name: str) -> str:
-        """Best-effort reverse of project_path_to_encoded_name.
-
-        The encoding replaces \\ / : with -, so D:\\foo\\bar → D--foo-bar and
-        /home/user → -home-user. The decode is lossy (- could be any of the
-        three separators), but the heuristic covers the common cases.
-        """
-        if len(encoded_name) >= 2 and encoded_name[1] == "-" and encoded_name[0].isalpha():
-            # Windows drive letter: D--foo-bar → D:\foo\bar
-            # encoded[0] = drive, encoded[1] = '-' (was ':'), rest uses '\'
-            drive = encoded_name[0]
-            rest = encoded_name[2:].lstrip("-").replace("-", "\\")
-            return f"{drive}:\\{rest}"
-        # Unix: -home-user-proj → /home/user/proj
-        return encoded_name.replace("-", "/")
 
     def find_claude_md(self, project: ProjectInfo) -> Path | None:
         return None

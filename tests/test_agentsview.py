@@ -282,6 +282,24 @@ class TestLoadSessions:
         assert isinstance(rec, SystemRecord)
         assert rec.subtype == "compact_boundary"
 
+    def test_compact_boundary_type_is_system(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        conn.execute(
+            "INSERT INTO sessions (session_id, project) VALUES (?, ?)",
+            ("s1", "/home/user/proj"),
+        )
+        _insert_message(conn, "m1", "s1", "user", is_compact_boundary=1)
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        results = ds.load_sessions(self._make_project())
+        rec = results[0].records[0]
+        assert isinstance(rec, SystemRecord)
+        assert rec.type == "system"
+
     def test_is_system_continuation(self, tmp_path: Path):
         db = tmp_path / "test.db"
         _build_test_db(db)
@@ -354,16 +372,47 @@ class TestLoadSessions:
         assert rec.session_id == "s1"
 
 
-class TestDecodeProjectPath:
-    def test_unix_path(self):
-        assert AgentsviewDataSource._decode_project_path("-home-user-proj") == "/home/user/proj"
+class TestResolveProjectPath:
+    def test_hyphenated_project_path(self, tmp_path: Path):
+        """Projects with hyphens in the name are resolved via DB lookup, not decode."""
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        conn.execute(
+            "INSERT INTO sessions (session_id, project) VALUES (?, ?)",
+            ("s1", "/home/my-project"),
+        )
+        _insert_message(conn, "m1", "s1", "user", content="hi")
+        conn.commit()
+        conn.close()
 
-    def test_windows_path(self):
-        assert AgentsviewDataSource._decode_project_path("D--prism") == "D:\\prism"
+        ds = AgentsviewDataSource(db)
+        projects = ds.discover_projects()
+        assert len(projects) == 1
+        results = ds.load_sessions(projects[0])
+        assert len(results) == 1
 
-    def test_windows_deep_path(self):
-        result = AgentsviewDataSource._decode_project_path("D--jarvis-space")
-        assert result == "D:\\jarvis\\space"
+    def test_fallback_lookup_without_discover(self, tmp_path: Path):
+        """load_sessions works even if discover_projects wasn't called first."""
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        conn.execute(
+            "INSERT INTO sessions (session_id, project) VALUES (?, ?)",
+            ("s1", "/home/user/proj"),
+        )
+        _insert_message(conn, "m1", "s1", "user", content="hi")
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        proj = ProjectInfo(
+            encoded_name=project_path_to_encoded_name("/home/user/proj"),
+            project_dir=Path("agentsview://-home-user-proj"),
+            session_files=[],
+        )
+        results = ds.load_sessions(proj)
+        assert len(results) == 1
 
 
 class TestAnalyzeProjectIntegration:

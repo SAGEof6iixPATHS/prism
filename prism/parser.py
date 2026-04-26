@@ -120,7 +120,7 @@ def _extract_text_from_blocks(blocks: list[ContentBlock]) -> str:
     return " ".join(b.text for b in blocks if b.text)
 
 
-def _classify_system_message(text: str) -> str | None:
+def classify_system_message(text: str) -> str | None:
     """Classify user-record content as a system subtype, or None.
 
     Mirrors agentsview's ClassifyClaudeSystemMessage.
@@ -168,7 +168,7 @@ def parse_record(data: dict[str, Any]) -> SessionRecord | None:
         content_raw = message.get("content", []) if isinstance(message, dict) else []
         blocks = _parse_content_blocks(content_raw)
         text = _extract_text_from_blocks(blocks)
-        subtype = _classify_system_message(text)
+        subtype = classify_system_message(text)
         if subtype:
             return SystemRecord(
                 **envelope_kwargs,

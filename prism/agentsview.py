@@ -270,18 +270,21 @@ class AgentsviewDataSource:
 
         scores = [r["health_score"] for r in rows if r["health_score"] is not None]
         grades = [r["health_grade"] for r in rows if r["health_grade"] is not None]
-        outcomes = [r["outcome"] for r in rows if r["outcome"] != "unknown"]
+        outcomes = [r["outcome"] for r in rows
+                    if r["outcome"] is not None and r["outcome"] != "unknown"]
 
         if not scores and not grades and not outcomes:
             return None
 
+        _GRADE_SEVERITY = {"A": 0, "B": 1, "C": 2, "D": 3, "F": 4}
         result: dict = {}
         if scores:
             result["mean_score"] = round(sum(scores) / len(scores), 1)
         if grades:
             grade_counts = Counter(grades)
             result["modal_grade"] = max(
-                grade_counts, key=lambda g: (grade_counts[g], g),
+                grade_counts,
+                key=lambda g: (grade_counts[g], _GRADE_SEVERITY.get(g, 99)),
             )
         if outcomes:
             outcome_counts = Counter(outcomes)

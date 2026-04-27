@@ -147,6 +147,8 @@ Followed by the advisor:
 | **CLAUDE.md Adherence** | Whether your rules are actually being followed, or ignored mid-session |
 | **Session Continuity** | Resume success rate, context loss on restart, truncated session files |
 
+**New in 0.3.0:** PRISM can also read from an [agentsview](https://github.com/wesm/agentsview) SQLite database via `--source agentsview`, giving you real API token counts and agentsview's own health scores alongside PRISM's grades.
+
 ---
 
 ## How it works
@@ -156,12 +158,31 @@ You use Claude Code normally
          ↓
 Claude Code writes session files to ~/.claude/projects/
          ↓
-PRISM reads and analyzes those files
+PRISM reads and analyzes those files (JSONL or agentsview DB)
          ↓
 Health scores  +  root cause diagnosis  +  CLAUDE.md diff
 ```
 
 PRISM never touches Claude Code. It never modifies your sessions. It reads the JSONL files Claude Code already writes and surfaces what's inside them.
+
+### Data sources
+
+**JSONL (default)** — reads raw session files from `~/.claude/projects/`. This is the zero-setup path that works out of the box.
+
+**agentsview** — reads from an [agentsview](https://github.com/wesm/agentsview) SQLite database. agentsview parses and normalizes Claude Code sessions into a queryable DB, so PRISM gets richer data: real API token counts (instead of the chars/4 heuristic) and agentsview's own health_score/health_grade/outcome per session, shown alongside PRISM's grades.
+
+```bash
+# Use agentsview as the data source
+prism analyze --source agentsview
+
+# Point to a specific database file
+prism analyze --source agentsview --agentsview-db /path/to/sessions.db
+```
+
+DB path resolution when `--agentsview-db` is not specified:
+1. `AGENTSVIEW_DATA_DIR` env var
+2. `AGENT_VIEWER_DATA_DIR` env var
+3. `~/.agentsview/sessions.db`
 
 ---
 
@@ -193,9 +214,10 @@ touches any file.
 <details>
 <summary><b>What data does PRISM read?</b></summary>
 
-Only the JSONL session files Claude Code writes to `~/.claude/projects/`
-and your CLAUDE.md files. It reads nothing else. No API keys, no environment
-variables, no network traffic.
+By default, only the JSONL session files Claude Code writes to
+`~/.claude/projects/` and your CLAUDE.md files. With `--source agentsview`,
+it also reads the agentsview SQLite database. It reads nothing else. No API
+keys, no network traffic.
 </details>
 
 <details>
@@ -231,11 +253,13 @@ prism                          # Full interactive TUI dashboard
 prism analyze                  # Rich-formatted health report, then exit
 prism analyze --project ~/myproject   # One project only
 prism analyze --json           # JSON output for scripting
+prism analyze --source agentsview     # Use agentsview DB instead of JSONL
 prism advise                   # CLAUDE.md recommendations
 prism advise --apply           # Write recommendations (with confirmation)
+prism advise --source agentsview      # Advise from agentsview data
 prism dashboard                # Generate HTML dashboard and open in browser
 prism dashboard --serve        # Serve on localhost:19821
-prism dashboard --no-open      # Generate only, don't open browser
+prism dashboard --source agentsview   # Dashboard from agentsview data
 prism replay <session-id>      # Scrub through a session timeline
 prism watch                    # Live dashboard for the running session
 prism projects                 # List all projects with session counts

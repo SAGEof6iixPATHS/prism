@@ -1,0 +1,55 @@
+# Changelog
+
+## 0.3.0 — 2026-04-26
+
+Agentsview integration: PRISM can now read sessions from the
+[agentsview](https://github.com/wesm/agentsview) SQLite database as an
+alternative to raw JSONL parsing.
+
+### Added
+
+- **`--source agentsview` flag** on `analyze`, `advise`, and `dashboard`
+  commands. Reads session data from the agentsview SQLite DB instead of
+  parsing JSONL files directly.
+- **`--agentsview-db` flag** to specify an explicit database path. Falls
+  back to `AGENTSVIEW_DATA_DIR`, `AGENT_VIEWER_DATA_DIR`, then
+  `~/.agentsview/sessions.db`.
+- **`SessionDataSource` protocol** (`prism/datasource.py`) — backend-agnostic
+  interface that both `JSONLDataSource` and `AgentsviewDataSource` implement.
+- **`AgentsviewDataSource`** (`prism/agentsview.py`) — full adapter covering
+  project discovery, session loading, record reconstruction, tool call
+  enrichment, and CLAUDE.md discovery.
+- **Real API token counts** — assistant records from agentsview carry the
+  actual `output_tokens` count from the Claude API. `estimate_record_tokens`
+  uses real counts when available, falling back to the chars/4 heuristic for
+  JSONL-sourced records.
+- **Health score cross-reference** — when using `--source agentsview`, the
+  analyze output shows agentsview's own health_score, health_grade, and
+  outcome alongside PRISM's grades (both Rich table and JSON output).
+
+### Architecture
+
+Built in 5 phases with full schema verification against upstream
+`schema.sql`. Each phase preserved the existing test baseline and passed
+roborev review before proceeding.
+
+- Phase 1: SessionDataSource protocol
+- Phase 2: JSONLDataSource refactor + analyzer datasource parameter
+- Phase 3: AgentsviewDataSource adapter (connection, session loading,
+  tool call enrichment, CLAUDE.md discovery)
+- Phase 4: CLI `--source` flag + DB path discovery
+- Phase 5: Real token counts + health score cross-reference
+
+### Notes
+
+- The `--source jsonl` path (default) is completely unchanged.
+- `context_tokens` from agentsview is intentionally not used for per-record
+  token estimation — it represents the full input window size per API call,
+  not a per-message delta.
+- Filtering passthrough (`--outcome`, `--min-score`, etc.) deferred to a
+  future release.
+
+## 0.2.1
+
+Initial public release with JSONL parsing, five-dimension health scoring,
+CLAUDE.md advisor, interactive TUI, and HTML dashboard.

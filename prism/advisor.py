@@ -10,10 +10,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from prism.analyzer import (
-    Issue,
-    ProjectHealthReport,
-)
+from prism.analyzer import ProjectHealthReport
 
 
 # ---------------------------------------------------------------------------

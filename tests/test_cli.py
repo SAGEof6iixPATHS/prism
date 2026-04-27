@@ -125,6 +125,32 @@ class TestAnalyzeAgentsview:
         assert result.exit_code == 0
         assert '"overall_grade"' in result.output
 
+    def test_analyze_agentsview_json_with_health(self, tmp_path: Path) -> None:
+        db_path = _make_test_db(tmp_path)
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            "UPDATE sessions SET health_score = 85, health_grade = 'B',"
+            " outcome = 'success' WHERE id = 'sess-1'"
+        )
+        conn.commit()
+        conn.close()
+        result = runner.invoke(
+            app,
+            ["analyze", "--source", "agentsview", "--agentsview-db", str(db_path), "--json"],
+        )
+        assert result.exit_code == 0
+        assert '"agentsview_health"' in result.output
+        assert '"mean_score"' in result.output
+
+    def test_analyze_agentsview_json_no_health_key_when_absent(self, tmp_path: Path) -> None:
+        db_path = _make_test_db(tmp_path)
+        result = runner.invoke(
+            app,
+            ["analyze", "--source", "agentsview", "--agentsview-db", str(db_path), "--json"],
+        )
+        assert result.exit_code == 0
+        assert '"agentsview_health"' not in result.output
+
     def test_analyze_agentsview_db_not_found(self, tmp_path: Path) -> None:
         result = runner.invoke(
             app,

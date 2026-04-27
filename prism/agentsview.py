@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from prism.parser import (
@@ -250,6 +250,44 @@ class AgentsviewDataSource:
                 records=records,
             ))
         return results
+
+    def get_project_health(self, project: ProjectInfo) -> dict | None:
+        """Aggregate agentsview health data across sessions for a project.
+
+        Returns None if no session has health data populated.
+        """
+        project_path = self._resolve_project_path(project.encoded_name)
+        if not project_path:
+            return None
+        conn = self._connect()
+        rows = conn.execute(
+            "SELECT health_score, health_grade, outcome FROM sessions"
+            " WHERE project = ? AND deleted_at IS NULL",
+            (project_path,),
+        ).fetchall()
+        if not rows:
+            return None
+
+        scores = [r["health_score"] for r in rows if r["health_score"] is not None]
+        grades = [r["health_grade"] for r in rows if r["health_grade"] is not None]
+        outcomes = [r["outcome"] for r in rows if r["outcome"] != "unknown"]
+
+        if not scores and not grades and not outcomes:
+            return None
+
+        result: dict = {}
+        if scores:
+            result["mean_score"] = round(sum(scores) / len(scores), 1)
+        if grades:
+            grade_counts = Counter(grades)
+            result["modal_grade"] = max(
+                grade_counts, key=lambda g: (grade_counts[g], g),
+            )
+        if outcomes:
+            outcome_counts = Counter(outcomes)
+            result["modal_outcome"] = outcome_counts.most_common(1)[0][0]
+        result["session_count"] = len(rows)
+        return result
 
     def find_claude_md(self, project: ProjectInfo) -> Path | None:
         project_path = self._resolve_project_path(project.encoded_name)

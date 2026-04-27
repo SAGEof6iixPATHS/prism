@@ -27,12 +27,18 @@ def _insert_session(
     git_branch: str = "main",
     source_version: str = "2.1.98",
     deleted_at: str | None = None,
+    health_score: int | None = None,
+    health_grade: str | None = None,
+    outcome: str = "unknown",
 ) -> None:
     """Insert a session row with sensible defaults."""
     conn.execute(
-        "INSERT INTO sessions (id, project, cwd, git_branch, source_version, deleted_at)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        (session_id, project, cwd, git_branch, source_version, deleted_at),
+        "INSERT INTO sessions"
+        " (id, project, cwd, git_branch, source_version, deleted_at,"
+        "  health_score, health_grade, outcome)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (session_id, project, cwd, git_branch, source_version, deleted_at,
+         health_score, health_grade, outcome),
     )
 
 
@@ -729,6 +735,91 @@ class TestFindClaudeMd:
         assert ds.find_claude_md(proj) is None
 
 
+class TestGetProjectHealth:
+    def _make_project(self, project_path: str = "/home/user/proj") -> ProjectInfo:
+        encoded = project_path_to_encoded_name(project_path)
+        return ProjectInfo(
+            encoded_name=encoded,
+            project_dir=Path(f"agentsview://{encoded}"),
+            session_files=[],
+        )
+
+    def test_all_populated(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        _insert_session(conn, "s1", "/home/user/proj",
+                        health_score=80, health_grade="B", outcome="success")
+        _insert_session(conn, "s2", "/home/user/proj",
+                        health_score=60, health_grade="C", outcome="success")
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        ds.discover_projects()
+        result = ds.get_project_health(self._make_project())
+        assert result is not None
+        assert result["mean_score"] == 70.0
+        assert result["modal_grade"] == "C"  # tie → pessimistic tiebreak
+        assert result["modal_outcome"] == "success"
+        assert result["session_count"] == 2
+
+    def test_all_null_returns_none(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        _insert_session(conn, "s1", "/home/user/proj")
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        ds.discover_projects()
+        assert ds.get_project_health(self._make_project()) is None
+
+    def test_mixed_nulls_excluded(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        _insert_session(conn, "s1", "/home/user/proj",
+                        health_score=90, health_grade="A")
+        _insert_session(conn, "s2", "/home/user/proj")  # no health data
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        ds.discover_projects()
+        result = ds.get_project_health(self._make_project())
+        assert result is not None
+        assert result["mean_score"] == 90.0
+        assert result["modal_grade"] == "A"
+        assert "modal_outcome" not in result
+        assert result["session_count"] == 2
+
+    def test_unknown_project_returns_none(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        ds = AgentsviewDataSource(db)
+        proj = ProjectInfo(
+            encoded_name="nonexistent", project_dir=Path("."), session_files=[],
+        )
+        assert ds.get_project_health(proj) is None
+
+    def test_grade_tiebreak_worst(self, tmp_path: Path):
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        _insert_session(conn, "s1", "/home/user/proj", health_grade="A")
+        _insert_session(conn, "s2", "/home/user/proj", health_grade="C")
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        ds.discover_projects()
+        result = ds.get_project_health(self._make_project())
+        # Both have count 1; pessimistic tiebreak picks worse grade
+        assert result["modal_grade"] == "C"
+
+
 class TestAnalyzeProjectIntegration:
     def test_analyze_with_agentsview_datasource(self, tmp_path: Path):
         from prism.analyzer import ProjectHealthReport, analyze_project
@@ -754,3 +845,54 @@ class TestAnalyzeProjectIntegration:
         report = analyze_project(proj, datasource=ds)
         assert isinstance(report, ProjectHealthReport)
         assert report.session_count == 1
+
+    def test_analyze_includes_agentsview_health(self, tmp_path: Path):
+        from prism.analyzer import analyze_project
+
+        db = tmp_path / "test.db"
+        _build_test_db(db)
+        conn = sqlite3.connect(db)
+        _insert_session(conn, "s1", "/home/user/proj",
+                        health_score=85, health_grade="B", outcome="success")
+        _insert_message(conn, "s1", "user", content="hello", ordinal=1)
+        _insert_message(conn, "s1", "assistant", content="hi",
+                        timestamp="2026-04-20T10:01:00Z", ordinal=2)
+        conn.commit()
+        conn.close()
+
+        ds = AgentsviewDataSource(db)
+        proj = ProjectInfo(
+            encoded_name=project_path_to_encoded_name("/home/user/proj"),
+            project_dir=Path("agentsview://-home-user-proj"),
+            session_files=[],
+        )
+        report = analyze_project(proj, datasource=ds)
+        assert report.agentsview_health is not None
+        assert report.agentsview_health["mean_score"] == 85.0
+
+    def test_jsonl_source_has_no_agentsview_health(self, tmp_path: Path):
+        from prism.analyzer import analyze_project
+        from prism.datasource import JSONLDataSource
+
+        proj_dir = tmp_path / "test-project"
+        proj_dir.mkdir()
+        session = proj_dir / "session1.jsonl"
+        session.write_text(
+            '{"uuid":"u1","parentUuid":null,"isSidechain":false,'
+            '"sessionId":"s1","timestamp":"2026-04-20T10:00:00Z",'
+            '"version":"2.1","cwd":"/tmp","type":"user",'
+            '"message":{"content":[{"type":"text","text":"hi"}]}}\n'
+            '{"uuid":"u2","parentUuid":"u1","isSidechain":false,'
+            '"sessionId":"s1","timestamp":"2026-04-20T10:00:01Z",'
+            '"version":"2.1","cwd":"/tmp","type":"assistant",'
+            '"message":{"content":[{"type":"text","text":"hello"}]}}\n',
+            encoding="utf-8",
+        )
+        proj = ProjectInfo(
+            encoded_name="test-project",
+            project_dir=proj_dir,
+            session_files=[session],
+        )
+        ds = JSONLDataSource(tmp_path)
+        report = analyze_project(proj, datasource=ds)
+        assert report.agentsview_health is None

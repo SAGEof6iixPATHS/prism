@@ -737,6 +737,7 @@ class ProjectHealthReport:
     overall_score: float
     overall_grade: str
     top_issues: list[Issue]
+    agentsview_health: dict | None = None
 
 
 def analyze_project(
@@ -792,6 +793,10 @@ def analyze_project(
     severity_order = {"high": 0, "medium": 1, "low": 2}
     all_issues.sort(key=lambda i: severity_order.get(i.severity, 3))
 
+    agentsview_health = None
+    if hasattr(datasource, "get_project_health"):
+        agentsview_health = datasource.get_project_health(project)
+
     return ProjectHealthReport(
         project=project,
         session_count=len(sessions),
@@ -803,4 +808,5 @@ def analyze_project(
         overall_score=overall_score,
         overall_grade=overall_grade,
         top_issues=all_issues[:10],
+        agentsview_health=agentsview_health,
     )

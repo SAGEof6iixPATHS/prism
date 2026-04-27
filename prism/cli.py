@@ -234,6 +234,23 @@ def _print_rich_report(reports: list) -> None:
     console.print()
     console.print(table)
 
+    # Print agentsview health cross-reference when available
+    for proj, report in reports:
+        if report.agentsview_health:
+            h = report.agentsview_health
+            parts = []
+            if "mean_score" in h:
+                parts.append(f"score {h['mean_score']}")
+            if "modal_grade" in h:
+                parts.append(f"grade {h['modal_grade']}")
+            if "modal_outcome" in h:
+                parts.append(f"outcome {h['modal_outcome']}")
+            if parts:
+                console.print(
+                    f"\n[dim]agentsview health ({h['session_count']} sessions):[/dim] "
+                    + " | ".join(parts)
+                )
+
     # Print top issues for each project
     for proj, report in reports:
         if report.top_issues:
@@ -249,7 +266,7 @@ def _print_json(reports: list) -> None:
     """Output analysis results as JSON."""
     output = []
     for proj, report in reports:
-        output.append({
+        entry = {
             "project": proj.encoded_name,
             "display_name": proj.display_name,
             "session_count": report.session_count,
@@ -291,7 +308,10 @@ def _print_json(reports: list) -> None:
                 }
                 for i in report.top_issues[:5]
             ],
-        })
+        }
+        if report.agentsview_health:
+            entry["agentsview_health"] = report.agentsview_health
+        output.append(entry)
     console.print(json.dumps(output, indent=2))
 
 
